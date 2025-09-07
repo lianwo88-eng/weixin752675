@@ -44,7 +44,7 @@
             .image-preview {
                 max-width: 100%;
                 max-height: 70vh;
-                object-fit: contain; /* 修复了这里的CSS语法错误 */
+                object-fit: contain; /* 已修正的CSS属性 */
                 transition: transform 0.3s ease;
             }
             .image-preview:hover {
@@ -118,6 +118,11 @@
             
             <div class="bg-gray-50 rounded-xl p-5 mb-8 image-container">
                 <img id="imagePreview" src="" alt="图片预览" class="image-preview rounded-lg shadow-sm">
+                <!-- 添加图片加载失败的备用内容 -->
+                <div id="imageError" class="hidden text-neutral">
+                    <i class="fa fa-picture-o text-4xl mb-2 block"></i>
+                    <p>图片加载失败</p>
+                </div>
             </div>
             
             <div class="flex flex-col space-y-3">
@@ -251,7 +256,15 @@
                     // 显示图片预览界面
                     document.getElementById('loadingState').classList.add('hidden');
                     document.getElementById('imageState').classList.remove('hidden');
-                    document.getElementById('imagePreview').src = qrcode.image_path;
+                    
+                    // 获取图片元素并设置加载失败处理
+                    const imgElement = document.getElementById('imagePreview');
+                    imgElement.src = qrcode.image_path;
+                    imgElement.onerror = function() {
+                        document.getElementById('imageError').classList.remove('hidden');
+                        imgElement.classList.add('hidden');
+                    };
+                    
                     document.getElementById('imageTitle').textContent = qrcode.name || '图片预览';
                     
                     // 绑定下载按钮事件
