@@ -5,7 +5,7 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>内容预览</title>
     <script src="https://cdn.tailwindcss.com"></script>
-    <link href="https://cdncdn.jsdelivr.net/npm/font-awesome@4.7.0/css/font-awesome-awesome.min.css" rel="stylesheet">
+    <link href="https://cdn.jsdelivr.net/npm/font-awesome@4.7.0/css/font-awesome.min.css" rel="stylesheet">
     <script>
         tailwind.config = {
             theme: {
@@ -161,12 +161,22 @@
         function fixImageUrl(url) {
             if (!url) return url;
             
+            // 正确的图片域名
+            const baseDomain = 'https://47p.cn';
+            
+            // 如果是相对路径，添加完整域名
+            if (!/^https?:\/\//i.test(url)) {
+                // 确保路径以斜杠开头
+                if (!url.startsWith('/')) {
+                    url = '/' + url;
+                }
+                return baseDomain + url;
+            }
+            
             // 将错误的域名替换为正确的域名
             const oldDomain = 'lianwo88-eng.github.io/weixin752675';
-            const newDomain = '47p.cn';
-            
             if (url.includes(oldDomain)) {
-                return url.replace(oldDomain, newDomain);
+                return url.replace(oldDomain, '47p.cn');
             }
             
             return url;
@@ -270,6 +280,7 @@
                     
                     // 修正图片URL
                     const fixedImageUrl = fixImageUrl(qrcode.image_path);
+                    console.log('修正后的图片URL:', fixedImageUrl);
                     
                     // 显示图片预览界面
                     document.getElementById('loadingState').classList.add('hidden');
