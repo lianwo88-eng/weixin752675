@@ -44,7 +44,7 @@
             .image-preview {
                 max-width: 100%;
                 max-height: 70vh;
-                object-contain;
+                object-fit: contain; /* 修复了这里的CSS语法错误 */
                 transition: transform 0.3s ease;
             }
             .image-preview:hover {
