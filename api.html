@@ -420,9 +420,16 @@
                 
                 const qrcode = await response.json();
                 
+                // 确保qrcode是一个对象
+                if (typeof qrcode !== 'object' || qrcode === null) {
+                    throw new Error('获取的数据格式不正确');
+                }
+                
                 // 记录访问日志和更新统计
-                logVisit(qrcode.id);
-                updateScanCount(qrcode.id);
+                if (qrcode.id) {
+                    logVisit(qrcode.id);
+                    updateScanCount(qrcode.id);
+                }
                 
                 // 根据活码类型显示不同内容
                 if (qrcode.type === 'graphic_text') {
@@ -453,7 +460,6 @@
                     
                     // 修正图片URL
                     const fixedImageUrl = fixImageUrl(qrcode.image_path);
-                    console.log('修正后的图片URL:', fixedImageUrl);
                     
                     // 显示图片预览界面
                     document.getElementById('loadingState').classList.add('hidden');
@@ -465,7 +471,6 @@
                     imgElement.onerror = function() {
                         document.getElementById('imageError').classList.remove('hidden');
                         imgElement.classList.add('hidden');
-                        console.error('图片加载失败，URL:', fixedImageUrl);
                     };
                     
                     document.getElementById('imageTitle').textContent = qrcode.name || '图片预览';
@@ -473,8 +478,23 @@
                     // 绑定下载按钮事件
                     document.getElementById('downloadImageBtn').addEventListener('click', downloadImage);
                 } else {
-                    // URL活码处理
-                    const targetUrl = validateUrl(qrcode.original_url || qrcode.original_urls[0]);
+                    // URL活码处理 - 增加多重安全检查
+                    let originalUrl = '';
+                    
+                    // 检查是否有单个URL
+                    if (typeof qrcode.original_url === 'string' && qrcode.original_url.trim() !== '') {
+                        originalUrl = qrcode.original_url.trim();
+                    } 
+                    // 检查是否有URL数组
+                    else if (Array.isArray(qrcode.original_urls) && qrcode.original_urls.length > 0) {
+                        // 确保第一个元素是字符串
+                        if (typeof qrcode.original_urls[0] === 'string' && qrcode.original_urls[0].trim() !== '') {
+                            originalUrl = qrcode.original_urls[0].trim();
+                        }
+                    }
+                    
+                    // 验证URL有效性
+                    const targetUrl = validateUrl(originalUrl);
                     if (!targetUrl) {
                         throw new Error('无效的目标URL');
                     }
