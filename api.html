@@ -19,9 +19,17 @@
                         danger: '#EF4444',
                         warning: '#F59E0B',
                         vip: '#FBBF24',
+                        wechat: {
+                            bg: '#F5F5F5',
+                            text: '#3E3E3E',
+                            title: '#2C2C2C',
+                            gray: '#8C8C8C',
+                            lightgray: '#F2F2F2'
+                        }
                     },
                     fontFamily: {
                         inter: ['Inter', 'system-ui', 'sans-serif'],
+                        wechat: ['-apple-system', 'BlinkMacSystemFont', 'Segoe UI', 'Roboto', 'Helvetica Neue', 'Arial', 'sans-serif']
                     },
                 }
             }
@@ -49,6 +57,32 @@
             }
             .image-preview:hover {
                 transform: scale(1.02);
+            }
+            .wechat-article p {
+                @apply my-4 leading-relaxed;
+            }
+            .wechat-article img {
+                @apply max-w-full h-auto my-6 mx-auto block;
+            }
+            .wechat-article h1, 
+            .wechat-article h2, 
+            .wechat-article h3 {
+                @apply font-bold mt-8 mb-4 text-wechat-title;
+            }
+            .wechat-article h1 {
+                @apply text-2xl;
+            }
+            .wechat-article h2 {
+                @apply text-xl;
+            }
+            .wechat-article h3 {
+                @apply text-lg;
+            }
+            .wechat-article a {
+                @apply text-primary underline;
+            }
+            .wechat-article blockquote {
+                @apply border-l-4 border-gray-300 pl-4 italic text-wechat-gray my-6;
             }
         }
     </style>
@@ -128,6 +162,48 @@
             <div class="flex flex-col space-y-3">
                 <button id="downloadImageBtn" class="bg-secondary text-white py-3.5 px-6 rounded-xl font-medium btn-hover flex items-center justify-center mx-auto w-full md:w-2/3">
                     <i class="fa fa-download mr-2"></i> 保存图片
+                </button>
+            </div>
+        </div>
+        
+        <!-- 图文活码展示状态 (微信公众号风格) -->
+        <div id="graphicTextState" class="hidden font-wechat bg-wechat-bg rounded-xl overflow-hidden">
+            <!-- 公众号文章头部 -->
+            <div class="p-6 bg-white">
+                <h1 id="graphicTitle" class="text-2xl md:text-3xl font-bold text-wechat-title leading-tight mb-4"></h1>
+                
+                <div class="flex items-center text-wechat-gray text-sm mb-6">
+                    <span id="graphicAuthor" class="mr-4">未知作者</span>
+                    <span><i class="fa fa-eye mr-1"></i> <span id="graphicViews">--</span>次浏览</span>
+                </div>
+                
+                <!-- 文章封面图 -->
+                <div id="graphicCoverContainer" class="mb-6 rounded-lg overflow-hidden">
+                    <img id="graphicCover" src="" alt="文章封面" class="w-full h-auto">
+                </div>
+            </div>
+            
+            <!-- 文章内容区域 -->
+            <div id="graphicContent" class="wechat-article p-6 bg-white min-h-[300px] text-wechat-text text-base">
+                <!-- 图文内容将在这里显示 -->
+            </div>
+            
+            <!-- 文章底部 -->
+            <div class="p-6 bg-white border-t border-wechat-lightgray mt-4">
+                <div id="graphicUrlContainer" class="mt-6 p-4 bg-wechat-lightgray rounded-lg hidden">
+                    <p class="text-wechat-gray text-sm mb-2">相关链接：</p>
+                    <a id="graphicUrl" href="#" target="_blank" class="text-primary text-sm underline break-all">查看链接</a>
+                </div>
+                
+                <div class="mt-8 pt-6 border-t border-wechat-lightgray text-center text-wechat-gray text-sm">
+                    <p>点击右上角 <i class="fa fa-share-alt"></i> 分享到朋友圈</p>
+                </div>
+            </div>
+            
+            <!-- 底部按钮 -->
+            <div class="p-6 bg-white">
+                <button id="graphicBackBtn" class="bg-primary text-white py-3.5 px-6 rounded-xl font-medium btn-hover flex items-center justify-center mx-auto w-full md:w-2/3">
+                    <i class="fa fa-arrow-left mr-2"></i> 返回
                 </button>
             </div>
         </div>
@@ -238,6 +314,83 @@
             document.body.removeChild(link);
         }
         
+        // 加载并显示图文内容
+        function displayGraphicContent(qrcode) {
+            // 隐藏加载状态，显示图文内容区域
+            document.getElementById('loadingState').classList.add('hidden');
+            document.getElementById('graphicTextState').classList.remove('hidden');
+            
+            // 设置标题
+            document.getElementById('graphicTitle').textContent = qrcode.title || '无标题';
+            
+            // 设置作者（使用活码名称作为作者）
+            document.getElementById('graphicAuthor').textContent = qrcode.name || '未知作者';
+            
+            // 设置浏览量
+            document.getElementById('graphicViews').textContent = qrcode.scan_count > 0 ? qrcode.scan_count : '--';
+            
+            // 处理封面图
+            const coverContainer = document.getElementById('graphicCoverContainer');
+            const coverImg = document.getElementById('graphicCover');
+            
+            // 从内容中提取第一张图片作为封面
+            if (qrcode.content && qrcode.content.includes('<img')) {
+                const tempDiv = document.createElement('div');
+                tempDiv.innerHTML = qrcode.content;
+                const firstImg = tempDiv.querySelector('img');
+                
+                if (firstImg && firstImg.src) {
+                    coverImg.src = fixImageUrl(firstImg.src);
+                    coverImg.alt = firstImg.alt || '文章封面';
+                    
+                    // 处理封面图加载失败
+                    coverImg.onerror = function() {
+                        coverContainer.classList.add('hidden');
+                    };
+                } else {
+                    coverContainer.classList.add('hidden');
+                }
+            } else {
+                coverContainer.classList.add('hidden');
+            }
+            
+            // 设置文章内容，修正图片URL
+            let content = qrcode.content || '<p>暂无内容</p>';
+            
+            // 修正内容中的所有图片URL
+            const tempDiv = document.createElement('div');
+            tempDiv.innerHTML = content;
+            const images = tempDiv.querySelectorAll('img');
+            
+            images.forEach(img => {
+                if (img.src) {
+                    img.src = fixImageUrl(img.src);
+                    // 添加图片样式
+                    img.classList.add('rounded-lg', 'shadow-sm');
+                }
+            });
+            
+            document.getElementById('graphicContent').innerHTML = tempDiv.innerHTML;
+            
+            // 处理相关链接
+            const urlContainer = document.getElementById('graphicUrlContainer');
+            const urlLink = document.getElementById('graphicUrl');
+            
+            if (qrcode.new_url) {
+                const fixedUrl = validateUrl(qrcode.new_url);
+                urlLink.href = fixedUrl;
+                urlLink.textContent = fixedUrl;
+                urlContainer.classList.remove('hidden');
+            } else {
+                urlContainer.classList.add('hidden');
+            }
+            
+            // 绑定返回按钮事件
+            document.getElementById('graphicBackBtn').addEventListener('click', () => {
+                window.location.href = 'index.html';
+            });
+        }
+        
         // 初始化页面
         async function init() {
             const shortCode = getShortCode();
@@ -272,7 +425,27 @@
                 updateScanCount(qrcode.id);
                 
                 // 根据活码类型显示不同内容
-                if (qrcode.type === 'image') {
+                if (qrcode.type === 'graphic_text') {
+                    // 如果是图文类型，获取详细内容
+                    const graphicResponse = await fetch('https://47p.cn/api.php', {
+                        method: 'POST',
+                        headers: {
+                            'Content-Type': 'application/json',
+                        },
+                        body: JSON.stringify({
+                            action: 'get_graphic_text',
+                            qrcode_id: qrcode.id
+                        })
+                    });
+                    
+                    if (!graphicResponse.ok) {
+                        throw new Error('获取图文内容失败');
+                    }
+                    
+                    const graphicData = await graphicResponse.json();
+                    displayGraphicContent(graphicData);
+                    
+                } else if (qrcode.type === 'image') {
                     // 图片活码处理
                     if (!qrcode.image_path) {
                         throw new Error('图片不存在或已被删除');
