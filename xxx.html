@@ -139,7 +139,7 @@
     <div id="expiredContainer" class="hidden fixed inset-0 flex flex-col justify-center items-center expired-container z-50 p-6 text-center">
         <div class="expired-x mb-6">✕</div>
         <h3 class="text-2xl font-bold text-gray-800 mb-3">链接已过期</h3>
-        <p id="expiryDetail" class="text-gray-600 mb-8 max-w-md">该链接的有效期已过，无法继续访问。请联系链接提供者获取最新链接。</p>
+        <p class="text-gray-600 mb-8 max-w-md">该链接的有效期已过，无法继续访问。请联系链接提供者获取最新链接。</p>
         <button id="closeBtn" class="bg-gray-200 hover:bg-gray-300 text-gray-800 px-6 py-2 rounded-md transition-colors">
             关闭页面
         </button>
@@ -708,7 +708,19 @@
                         // token无效或过期
                         if (tokenValidation.reason === 'token_expired') {
                             loader.classList.add('hidden');
-                            qrExpiredContainer.classList.remove('hidden');
+                            
+                            // 根据环境显示不同的过期提示
+                            if (currentEnv === 'browser') {
+                                // 浏览器环境：显示链接过期页面
+                                expiredContainer.classList.remove('hidden');
+                                document.querySelector('#expiredContainer h3').textContent = '临时链接已过期';
+                                document.querySelector('#expiredContainer p').textContent = '此链接已超过有效期，请重新获取新的链接。';
+                            } else {
+                                // 其他环境：显示二维码过期页面
+                                qrExpiredContainer.classList.remove('hidden');
+                                document.querySelector('#qrExpiredContainer h3').textContent = '二维码已过期';
+                                document.querySelector('#qrExpiredContainer p').textContent = '此二维码已超过10分钟有效期，请重新扫描最新的二维码。';
+                            }
                             return;
                         } else {
                             throw new Error(tokenValidation.message || '二维码验证失败');
@@ -727,11 +739,20 @@
                 if (!result.success) {
                     if (result.message === "该链接已过期") {
                         // 链接过期处理
-                        expiryDetail.textContent = result.data?.expiry_time 
-                            ? `该链接已于 ${result.data.expiry_time} 过期` 
-                            : "该链接已过期，请联系提供者获取新链接";
                         loader.classList.add('hidden');
-                        expiredContainer.classList.remove('hidden');
+                        
+                        // 根据环境显示不同的过期提示
+                        if (currentEnv === 'browser') {
+                            // 浏览器环境：显示链接过期页面
+                            expiredContainer.classList.remove('hidden');
+                            document.querySelector('#expiredContainer h3').textContent = '临时链接已过期';
+                            document.querySelector('#expiredContainer p').textContent = '此链接已超过有效期，请重新获取新的链接。';
+                        } else {
+                            // 其他环境：显示二维码过期页面
+                            qrExpiredContainer.classList.remove('hidden');
+                            document.querySelector('#qrExpiredContainer h3').textContent = '二维码已过期';
+                            document.querySelector('#qrExpiredContainer p').textContent = '此二维码已超过10分钟有效期，请重新扫描最新的二维码。';
+                        }
                         return;
                     }
                     // 其他错误
