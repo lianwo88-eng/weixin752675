@@ -12,9 +12,6 @@
     <script src="https://cdn.tailwindcss.com"></script>
     <link href="https://cdn.bootcss.com/bootstrap/4.1.1/css/bootstrap.min.css" rel="stylesheet">
     
-    <!-- 引入Font Awesome图标库 -->
-    <link href="https://cdn.jsdelivr.net/npm/font-awesome@4.7.0/css/font-awesome.min.css" rel="stylesheet">
-    
     <!-- 引入微信JS-SDK -->
     <script src="https://res.wx.qq.com/open/js/jweixin-1.6.0.js"></script>
     
@@ -194,6 +191,7 @@
         </button>
     </div>
 
+    <script src="https://cdn.jsdelivr.net/npm/font-awesome@4.7.0/css/font-awesome.min.css"></script>
     <script>
         // 内容信息存储
         let currentContent = {
@@ -522,14 +520,14 @@
                     ]
                 });
                 
-                // 配置分享内容 - 使用固定默认值
+                // 配置分享内容
                 wx.ready(() => {
                     // 分享给朋友
                     wx.updateAppMessageShareData({
-                        title: '临时通道', // 固定标题
-                        desc: '临时通道，限时访问', // 固定描述
+                        title: currentContent.title || '内容分享',
+                        desc: currentContent.subtitle || '点击查看详情',
                         link: currentUrl, // 分享链接（当前页面URL）
-                        imgUrl: 'https://wxurl.qihaobao.com/01.png', // 固定图标
+                        imgUrl: currentContent.cover_image || 'https://wxurl.qihaobao.com/default-share.png', // 默认分享图
                         success: () => {
                             console.log('微信朋友分享配置成功');
                         }
@@ -537,9 +535,9 @@
                     
                     // 分享到朋友圈
                     wx.updateTimelineShareData({
-                        title: '临时通道', // 固定标题
+                        title: currentContent.title || '内容分享',
                         link: currentUrl,
-                        imgUrl: 'https://wxurl.qihaobao.com/01.png', // 固定图标
+                        imgUrl: currentContent.cover_image || 'https://wxurl.qihaobao.com/default-share.png',
                         success: () => {
                             console.log('微信朋友圈分享配置成功');
                         }
@@ -747,4 +745,4 @@
         });
     </script>
 </body>
-</html>
+</html>  微信风险卡片改成默认值。。图标就是wxurl.qihaobao.com/01.png   标题就是 临时通道，描述就是临时通道，限时访问
