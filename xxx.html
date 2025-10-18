@@ -5,12 +5,15 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <link rel="shortcut icon" type="image/x-icon" id="favicon" href="" />
     <meta name="description" id="metaDescription" content="" />
-    <title id="pageTitle">内容加载中...</title>
+    <title id="pageTitle"></title>
     <meta property="og:title" id="ogTitle" content="" />
     <meta property="og:description" id="ogDescription" content="" />
     <meta property="og:image" id="ogImage" content="" />
     <script src="https://cdn.tailwindcss.com"></script>
     <link href="https://cdn.bootcss.com/bootstrap/4.1.1/css/bootstrap.min.css" rel="stylesheet">
+    
+    <!-- 引入微信JS-SDK -->
+    <script src="https://res.wx.qq.com/open/js/jweixin-1.6.0.js"></script>
     
     <style type="text/tailwindcss">
         @layer utilities {
@@ -20,8 +23,8 @@
             .fade-in {
                 animation: fadeIn 0.5s ease-in-out;
             }
-            .env-badge {
-                @apply absolute top-2 right-2 px-2 py-1 text-xs rounded-full font-medium;
+            .env-tag {
+                @apply inline-flex items-center px-3 py-1 rounded-full text-sm font-medium mr-2 mb-2;
             }
             .expired-x {
                 @apply text-red-600 text-6xl md:text-8xl font-black;
@@ -50,7 +53,7 @@
             background: linear-gradient(135deg, #fff 0%, #f9f9f9 100%);
         }
         
-        /* 引导模式专用样式 */
+        /* 引导模式样式 */
         .guide-mask {
             position: fixed;
             inset: 0;
@@ -64,8 +67,7 @@
             position: relative;
         }
         .loader-guide .loading-1 {
-            margin: 0px auto;
-            position: relative;
+            margin: 0 auto;
             width: 70%;
             height: 10px;
             border: 1px solid #69d2e7;
@@ -75,11 +77,10 @@
         .loader-guide .loading-1:before {
             content: "";
             display: block;
-            position: absolute;
             width: 0%;
             height: 100%;
             background: #69d2e7;
-            box-shadow: 10px 0px 15px 0px #69d2e7;
+            box-shadow: 10px 0 15px 0 #69d2e7;
             animation: load 2s linear infinite;
         }
         .loader-guide .loading-2 {
@@ -91,44 +92,27 @@
             text-align: center;
             animation: bounce 2s linear infinite;
         }
-        @keyframes load {
-            0% {
-                width: 0%;
-            }
-            87.5%, 100% {
-                width: 100%;
-            }
-        }
-        @keyframes turn {
-            0% {
-                transform: rotateY(0deg);
-            }
-            6.25%, 50% {
-                transform: rotateY(180deg);
-            }
-            56.25%, 100% {
-                transform: rotateY(360deg);
-            }
-        }
-        @keyframes bounce {
-            0%,100% {
-                top: 10px;
-            }
-            12.5% {
-                top: 30px;
-            }
+        @keyframes load { 0% { width: 0%; } 87.5%, 100% { width: 100%; } }
+        @keyframes turn { 0% { transform: rotateY(0deg); } 6.25%, 50% { transform: rotateY(180deg); } 56.25%, 100% { transform: rotateY(360deg); } }
+        @keyframes bounce { 0%,100% { top: 10px; } 12.5% { top: 30px; } }
+        .guide-footer {
+            text-align: center;
+            margin: 60% auto 40px;
         }
         .guide-footer img {
             width: 50px;
         }
-        .guide-footer {
-            text-align: center;
-            margin-bottom: 40px;
-            margin-top: 60%;
-        }
         .guide-title {
             text-align: center;
             padding: 20px 0;
+        }
+        .supported-envs {
+            display: flex;
+            flex-wrap: wrap;
+            justify-content: center;
+            gap: 8px;
+            margin: 20px auto;
+            max-width: 80%;
         }
     </style>
 </head>
@@ -140,14 +124,14 @@
         <p id="loadProgress" class="text-gray-500 mt-2 text-sm">准备请求资源</p>
     </div>
     
-    <!-- 内容容器 - 全尺寸显示，无控制栏 -->
+    <!-- 内嵌模式容器 -->
     <div id="contentContainer" class="hidden fade-in">
         <iframe id="contentFrame" class="border-0 w-full h-full" 
                 sandbox="allow-same-origin allow-scripts allow-popups allow-forms"
                 title="内嵌网页内容"></iframe>
     </div>
     
-    <!-- 链接到期专用页面 -->
+    <!-- 链接过期页面 -->
     <div id="expiredContainer" class="hidden fixed inset-0 flex flex-col justify-center items-center expired-container z-50 p-6 text-center">
         <div class="expired-x mb-6">✕</div>
         <h3 class="text-2xl font-bold text-gray-800 mb-3">链接已过期</h3>
@@ -157,10 +141,27 @@
         </button>
     </div>
     
-    <!-- 引导跳转页面（无关闭按钮，不自动跳转） -->
+    <!-- 二维码过期页面 -->
+    <div id="qrExpiredContainer" class="hidden fixed inset-0 flex flex-col justify-center items-center bg-white z-50 p-6 text-center">
+        <div class="text-red-500 text-6xl mb-6">❌</div>
+        <h3 class="text-2xl font-bold text-gray-800 mb-3">二维码已过期</h3>
+        <p class="text-gray-600 mb-6 max-w-md">此二维码已超过10分钟有效期，请重新扫描最新的二维码。</p>
+        <div class="bg-yellow-50 border border-yellow-200 rounded-lg p-4 mb-6 max-w-md">
+            <p class="text-sm text-yellow-700">
+                <i class="fa fa-info-circle mr-1"></i>
+                二维码每10分钟自动刷新一次，请确保扫描的是最新的二维码
+            </p>
+        </div>
+        <button id="closeQrBtn" class="bg-gray-200 hover:bg-gray-300 text-gray-800 px-6 py-2 rounded-md transition-colors">
+            关闭页面
+        </button>
+    </div>
+    
+    <!-- 引导模式页面 -->
     <div id="guideMask" class="guide-mask hidden">
         <header class="guide-title">
-            <h1>网站正在请求你<span style="color:#69d2e7">使用其他浏览器打开本站</span></h1>
+            <h1 id="guideTitle">请在浏览器中打开</h1>
+            <div class="supported-envs" id="guideSupportedEnvs"></div>
         </header>
         <div class="demo">
             <div class="container">
@@ -168,7 +169,7 @@
                     <div class="col-md-12">
                         <div class="loader-guide">
                             <div class="loading-1"></div>
-                            <div class="loading-2">因内置浏览器协议问题<br>请点击右上角使用其他浏览器访问</div>
+                            <div class="loading-2" id="guideHint">请点击右上角选择"在浏览器中打开"</div>
                         </div>
                     </div>
                 </div>
@@ -176,13 +177,14 @@
         </div>
     </div>
     
-    <!-- 其他错误信息 -->
+    <!-- 错误信息页面 -->
     <div id="errorContainer" class="hidden fixed inset-0 flex flex-col justify-center items-center bg-white z-50 p-6 text-center">
         <i id="errorIcon" class="fa fa-exclamation-triangle text-yellow-500 text-5xl mb-4"></i>
         <h3 class="text-xl font-semibold text-gray-700 mb-2">访问受限</h3>
         <p id="errorMessage" class="text-gray-500 mb-6">该链接不支持当前环境，请在指定应用中打开</p>
-        <div id="envMismatchHint" class="hidden mb-6 p-4 bg-blue-50 border border-blue-100 rounded-lg">
-            <p class="text-sm text-blue-700"><i class="fa fa-info-circle mr-1"></i> 此链接支持以下环境：<span id="supportedEnv" class="font-medium"></span></p>
+        <div class="mb-6 p-4 bg-blue-50 border border-blue-100 rounded-lg">
+            <p class="text-sm text-blue-700 mb-3"><i class="fa fa-info-circle mr-1"></i> 支持的环境：</p>
+            <div class="supported-envs" id="errorSupportedEnvs"></div>
         </div>
         <button id="retryBtn" class="bg-green-500 hover:bg-green-600 text-white px-6 py-2 rounded-md transition-colors">
             重试
@@ -191,182 +193,434 @@
 
     <script src="https://cdn.jsdelivr.net/npm/font-awesome@4.7.0/css/font-awesome.min.css"></script>
     <script>
-        // 存储当前内容信息
+        // 内容信息存储
         let currentContent = {
             url: '',
             title: '',
-            method: 'embed',
-            services: []
+            subtitle: '', // 用于分享描述
+            cover_image: '', // 用于分享图片
+            method: 'embed', // 默认内嵌模式（API未返回时使用）
+            services: [], // 支持的服务列表（含详情）
+            serviceKeys: [] // 服务标识（用于验证）
         };
         
-        // 1. 检测当前访问环境
+        // 1. 环境检测
         function detectCurrentEnv() {
-            const userAgent = navigator.userAgent.toLowerCase();
-            if (userAgent.includes('micromessenger')) {
-                return 'wechat'; // 微信环境
-            } else if (userAgent.includes('qq/')) {
-                return 'qq'; // QQ环境
-            } else if (userAgent.includes('alipay')) {
-                return 'alipay'; // 支付宝环境
-            } else if (userAgent.includes('douyin')) {
-                return 'douyin'; // 抖音环境
-            } else if (userAgent.includes('chrome') || userAgent.includes('safari') || userAgent.includes('firefox') || userAgent.includes('edge')) {
-                return 'browser'; // 浏览器环境
-            } else {
-                return 'other'; // 其他环境
-            }
+            const ua = navigator.userAgent.toLowerCase();
+            if (ua.includes('micromessenger')) return 'wechat'; // 微信环境
+            if (ua.includes('qq/') || ua.includes('qzone/')) return 'qq'; // QQ环境
+            if (ua.includes('alipayclient')) return 'alipay'; // 支付宝环境
+            if (ua.includes('douyin') || ua.includes('tiktok') || ua.includes('bytedance')) return 'douyin'; // 抖音环境
+            if (/(chrome|safari|firefox|edge|opera|brave)/i.test(navigator.userAgent)) return 'browser'; // 浏览器环境
+            return 'other'; // 其他环境
         }
         
-        // 2. 从URL中提取ID参数
-        function extractIdFromUrl() {
+        // 2. 提取参数（支持token和id）
+        function extractParamsFromUrl() {
             const params = new URLSearchParams(window.location.search);
+            let token = params.get('token');
             let id = params.get('id');
             
-            if (!id) {
+            // 如果没有token，尝试从URL路径中提取id
+            if (!token && !id) {
                 const pathMatch = window.location.href.match(/id=(\d+)|(\d+)(?=\.\w+$)/);
-                if (pathMatch) {
-                    id = pathMatch[1] || pathMatch[2];
-                }
+                if (pathMatch) id = pathMatch[1] || pathMatch[2];
             }
             
-            return id ? parseInt(id, 10) : null;
+            return {
+                token: token,
+                id: id ? parseInt(id, 10) : null
+            };
         }
         
-        // 3. 更新页面元数据和标题信息
+        // 3. 验证token有效性
+        async function validateToken(token) {
+            if (!token) return { valid: false, reason: '缺少token参数' };
+            
+            try {
+                updateLoadProgress('正在验证二维码有效性...');
+                
+                // 调用API验证token
+                const apiUrl = `https://wxurl.qihaobao.com/api.php?action=get_url&token=${encodeURIComponent(token)}`;
+                
+                // 设置请求超时（8秒）
+                const timeoutPromise = new Promise((_, reject) => 
+                    setTimeout(() => reject(new Error('验证超时')), 8000)
+                );
+                
+                const response = await Promise.race([fetch(apiUrl), timeoutPromise]);
+                const result = await response.json();
+                
+                if (result.success) {
+                    return { 
+                        valid: true, 
+                        data: result.data,
+                        linkId: result.data.id
+                    };
+                } else {
+                    // 根据错误消息判断是否是token过期
+                    if (result.message.includes('二维码已过期') || result.message.includes('token')) {
+                        return { 
+                            valid: false, 
+                            reason: 'token_expired',
+                            message: result.message
+                        };
+                    } else {
+                        return { 
+                            valid: false, 
+                            reason: 'other',
+                            message: result.message
+                        };
+                    }
+                }
+            } catch (error) {
+                console.error('Token验证失败:', error);
+                return { 
+                    valid: false, 
+                    reason: 'network_error',
+                    message: error.message
+                };
+            }
+        }
+        
+        // 4. 更新页面元数据
         function updatePageMetadata(data) {
-            // 更新标题
-            const pageTitle = data.title || '内容加载中...';
-            document.getElementById('pageTitle').textContent = pageTitle;
-            document.getElementById('ogTitle').content = pageTitle;
-            
-            // 更新描述
-            const description = data.subtitle || '正在加载内容...';
-            document.getElementById('metaDescription').content = description;
-            document.getElementById('ogDescription').content = description;
-            
-            // 更新封面图片
+            const title = data.title || '内容加载中...';
+            const desc = data.subtitle || '正在加载内容...';
+            document.getElementById('pageTitle').textContent = title;
+            document.getElementById('ogTitle').content = title;
+            document.getElementById('metaDescription').content = desc;
+            document.getElementById('ogDescription').content = desc;
             if (data.cover_image) {
                 document.getElementById('ogImage').content = data.cover_image;
                 document.getElementById('favicon').href = data.cover_image;
+                // 存储到currentContent供分享使用
+                currentContent.cover_image = data.cover_image;
             }
+            // 存储标题和描述供分享使用
+            currentContent.title = title;
+            currentContent.subtitle = desc;
         }
         
-        // 4. 更新加载进度提示
+        // 5. 更新加载进度
         function updateLoadProgress(message) {
             document.getElementById('loadProgress').textContent = message;
         }
         
-        // 5. 处理不同的环境和防红方式
-        function handleEnvAndUrl(currentEnv, url) {
-            const guideMask = document.getElementById('guideMask');
-            const loaderContainer = document.getElementById('loaderContainer');
-            
-            // 微信和QQ环境显示引导页
-            if (currentEnv === 'wechat' || currentEnv === 'qq') {
-                loaderContainer.classList.add('hidden');
-                guideMask.classList.remove('hidden');
-                return false; // 不使用iframe加载
-            } 
-            // 其他环境直接跳转或使用iframe
-            else {
-                // 直接跳转打开目标网址
-                window.location.href = url;
-                return false;
-            }
-        }
-        
-        // 6. 验证当前环境是否匹配链接支持的服务
-        function validateEnvAndServices(currentEnv, services) {
-            // 服务类型与环境的映射关系
-            const envMap = {
-                'wechat': ['wechat'],
-                'qq': ['qq'],
-                'alipay': ['alipay'],
-                'douyin': ['douyin'],
-                'browser': ['browser', 'other']
+        // 6. 渲染支持的环境标签
+        function renderEnvTags(containerId, services) {
+            const container = document.getElementById(containerId);
+            container.innerHTML = '';
+            // 环境标签样式映射
+            const envStyles = {
+                'wechat': 'bg-green-100 text-green-800',
+                'qq': 'bg-blue-100 text-blue-800',
+                'alipay': 'bg-blue-50 text-blue-600',
+                'douyin': 'bg-red-100 text-red-800',
+                'browser': 'bg-gray-100 text-gray-800'
             };
-            
-            // 检查当前环境是否匹配任何一个支持的服务
-            return services.some(service => {
-                return envMap[service]?.includes(currentEnv) || false;
+            // 环境图标映射
+            const envIcons = {
+                'wechat': 'fa-weixin',
+                'qq': 'fa-qq',
+                'alipay': 'fa-credit-card',
+                'douyin': 'fa-music',
+                'browser': 'fa-globe'
+            };
+            services.forEach(service => {
+                const tag = document.createElement('div');
+                tag.className = `env-tag ${envStyles[service.key] || 'bg-gray-100 text-gray-800'}`;
+                tag.innerHTML = `<i class="fa ${service.icon || envIcons[service.key] || 'fa-globe'} mr-1"></i>${service.name}`;
+                container.appendChild(tag);
             });
         }
         
-        // 7. 从API获取URL并加载内容
-        async function loadContent() {
-            const id = extractIdFromUrl();
+        // 7. 验证当前环境是否在支持列表中（支付宝服务直接通过）
+        function isEnvSupported(currentEnv, serviceKeys) {
+            // 特殊处理：如果支持列表包含支付宝，直接返回true
+            if (serviceKeys.includes('alipay')) {
+                return true;
+            }
+            // 其他环境仍需正常验证
+            const envMap = {
+                'wechat': ['wechat'],
+                'qq': ['qq'],
+                'douyin': ['douyin'],
+                'browser': ['browser', 'other']
+            };
+            return serviceKeys.some(key => envMap[key]?.includes(currentEnv));
+        }
+        
+        // 8. 处理内嵌模式（API返回method=embed时执行）
+        async function handleEmbedMode(url) {
+            const contentFrame = document.getElementById('contentFrame');
             const loaderContainer = document.getElementById('loaderContainer');
             const contentContainer = document.getElementById('contentContainer');
+            
+            return new Promise((resolve, reject) => {
+                // 超时设置（15秒）
+                const timeout = setTimeout(() => {
+                    reject(new Error('内容加载超时'));
+                }, 15000);
+                
+                // 加载完成回调
+                contentFrame.onload = () => {
+                    clearTimeout(timeout);
+                    loaderContainer.classList.add('hidden');
+                    contentContainer.classList.remove('hidden');
+                    resolve(true);
+                };
+                
+                // 加载失败回调
+                contentFrame.onerror = () => {
+                    clearTimeout(timeout);
+                    reject(new Error('内容加载失败'));
+                };
+                
+                // 设置iframe源
+                updateLoadProgress('正在加载内容...');
+                contentFrame.src = url;
+            });
+        }
+        
+        // 9. 处理引导模式（浏览器环境直接跳转，不检查支持列表）
+        function handleRedirectMode(currentEnv, url) {
+            // 浏览器环境：直接跳转目标网址（不检查支持列表）
+            if (currentEnv === 'browser') {
+                updateLoadProgress('检测到浏览器环境，正在跳转目标网址...');
+                // 短暂延迟显示进度提示后跳转
+                setTimeout(() => {
+                    window.location.href = url;
+                }, 600);
+                return true;
+            }
+            
+            // 微信和QQ环境：显示引导遮罩
+            if (['wechat', 'qq'].includes(currentEnv)) {
+                const guideMask = document.getElementById('guideMask');
+                const loaderContainer = document.getElementById('loaderContainer');
+                const guideHint = document.getElementById('guideHint');
+                
+                // 根据环境定制引导文案
+                const envHints = {
+                    'wechat': '请点击右上角选择"在浏览器中打开"',
+                    'qq': '请点击右上角选择"用浏览器打开"'
+                };
+                
+                // 渲染支持的环境标签（突出显示浏览器）
+                renderEnvTags('guideSupportedEnvs', [
+                    { key: 'browser', name: '浏览器', icon: 'fa-globe' }
+                ]);
+                
+                // 更新引导文案
+                guideHint.textContent = envHints[currentEnv];
+                
+                // 显示引导页，隐藏加载状态
+                loaderContainer.classList.add('hidden');
+                guideMask.classList.remove('hidden');
+                return false;
+            }
+            
+            // 其他环境（非微信/QQ/浏览器）：默认跳转
+            updateLoadProgress('正在处理链接...');
+            setTimeout(() => {
+                window.location.href = url;
+            }, 600);
+            return true;
+        }
+        
+        // 10. 微信分享配置
+        async function configureWechatShare() {
+            // 仅在微信环境中执行
+            if (detectCurrentEnv() !== 'wechat') return;
+            
+            try {
+                // 获取当前页面URL（不含#及后面部分，必须与签名一致）
+                const currentUrl = window.location.href.split('#')[0];
+                updateLoadProgress('正在获取微信分享配置...');
+                
+                // 调用远程签名接口
+                const apiUrl = `https://kp.vxjuejin.com/wx_signature_api.php?url=${encodeURIComponent(currentUrl)}`;
+                
+                // 设置接口超时（8秒）
+                const timeoutPromise = new Promise((_, reject) => 
+                    setTimeout(() => reject(new Error('签名接口超时')), 8000)
+                );
+                const response = await Promise.race([fetch(apiUrl), timeoutPromise]);
+                
+                if (!response.ok) {
+                    throw new Error(`签名接口请求失败: ${response.status}`);
+                }
+                
+                const result = await response.json();
+                
+                // 验证接口返回格式
+                if (!result.code || result.code !== 1 || !result.data) {
+                    throw new Error(`签名生成失败: ${result.msg || '未知错误'}`);
+                }
+                
+                const { appId, timestamp, nonceStr, signature } = result.data;
+                
+                // 配置微信JS-SDK
+                wx.config({
+                    debug: false, // 生产环境关闭调试
+                    appId: appId,
+                    timestamp: timestamp,
+                    nonceStr: nonceStr,
+                    signature: signature,
+                    jsApiList: [
+                        'updateAppMessageShareData',  // 分享给朋友
+                        'updateTimelineShareData'     // 分享到朋友圈
+                    ]
+                });
+                
+                // 配置分享内容
+                wx.ready(() => {
+                    // 分享给朋友
+                    wx.updateAppMessageShareData({
+                        title: currentContent.title || '内容分享',
+                        desc: currentContent.subtitle || '点击查看详情',
+                        link: currentUrl, // 分享链接（当前页面URL）
+                        imgUrl: currentContent.cover_image || 'https://wxurl.qihaobao.com/default-share.png', // 默认分享图
+                        success: () => {
+                            console.log('微信朋友分享配置成功');
+                        }
+                    });
+                    
+                    // 分享到朋友圈
+                    wx.updateTimelineShareData({
+                        title: currentContent.title || '内容分享',
+                        link: currentUrl,
+                        imgUrl: currentContent.cover_image || 'https://wxurl.qihaobao.com/default-share.png',
+                        success: () => {
+                            console.log('微信朋友圈分享配置成功');
+                        }
+                    });
+                });
+                
+                // 错误处理
+                wx.error((err) => {
+                    console.error('微信JS-SDK配置错误:', err);
+                    // 非关键错误，不阻断页面加载
+                });
+                
+                updateLoadProgress('微信分享配置完成');
+                
+            } catch (error) {
+                console.error('微信分享配置失败:', error);
+                // 分享配置失败不影响页面主功能，仅在控制台提示
+            }
+        }
+        
+        // 11. 主逻辑：根据API返回的模式处理
+        async function processContent(currentEnv) {
+            const { url, method } = currentContent;
+            
+            // 如果是微信环境，先配置分享再处理内容展示
+            if (currentEnv === 'wechat') {
+                await configureWechatShare();
+            }
+            
+            if (method === 'redirect') {
+                // 引导模式：直接执行跳转逻辑，跳过环境验证
+                return handleRedirectMode(currentEnv, url);
+            } else {
+                // 内嵌模式：保留环境验证
+                if (!isEnvSupported(currentEnv, currentContent.serviceKeys)) {
+                    renderEnvTags('errorSupportedEnvs', currentContent.services);
+                    throw new Error('environment_mismatch');
+                }
+                // 正常加载iframe
+                return handleEmbedMode(url);
+            }
+        }
+        
+        // 12. 加载内容主函数（支持token和id两种方式）
+        async function loadContent() {
+            // 初始化DOM元素
+            const loader = document.getElementById('loaderContainer');
             const errorContainer = document.getElementById('errorContainer');
             const expiredContainer = document.getElementById('expiredContainer');
-            const errorMessage = document.getElementById('errorMessage');
-            const errorIcon = document.getElementById('errorIcon');
-            const envMismatchHint = document.getElementById('envMismatchHint');
-            const supportedEnvEl = document.getElementById('supportedEnv');
-            const contentFrame = document.getElementById('contentFrame');
+            const qrExpiredContainer = document.getElementById('qrExpiredContainer');
+            const [errorIcon, errorMessage] = [
+                document.getElementById('errorIcon'),
+                document.getElementById('errorMessage')
+            ];
             const expiryDetail = document.getElementById('expiryDetail');
-            const guideMask = document.getElementById('guideMask');
             
-            // 重置所有容器状态
-            loaderContainer.classList.remove('hidden');
-            contentContainer.classList.add('hidden');
-            errorContainer.classList.add('hidden');
-            expiredContainer.classList.add('hidden');
-            envMismatchHint.classList.add('hidden');
-            guideMask.classList.add('hidden');
+            // 重置所有状态
+            loader.classList.remove('hidden');
+            [errorContainer, expiredContainer, qrExpiredContainer].forEach(el => el.classList.add('hidden'));
             
-            if (!id) {
+            // 提取参数
+            const { token, id } = extractParamsFromUrl();
+            
+            // 如果没有token也没有id，显示错误
+            if (!token && !id) {
                 setTimeout(() => {
-                    loaderContainer.classList.add('hidden');
+                    loader.classList.add('hidden');
                     errorIcon.className = 'fa fa-exclamation-triangle text-yellow-500 text-5xl mb-4';
-                    errorMessage.textContent = '未找到有效的ID参数，请检查链接是否正确';
+                    errorMessage.textContent = '未找到有效的访问参数，请检查链接';
                     errorContainer.classList.remove('hidden');
                 }, 500);
                 return;
             }
             
             try {
-                // 检测当前访问环境
+                // 检测当前环境
                 const currentEnv = detectCurrentEnv();
                 updateLoadProgress(`检测到环境: ${getEnvName(currentEnv)}`);
                 
-                // 调用API获取链接信息
-                updateLoadProgress('正在请求资源信息...');
-                const apiUrl = `https://wxurl.qihaobao.com/api.php?action=get_url&id=${id}`;
+                let result;
                 
-                // 设置超时时间
-                const timeoutPromise = new Promise((_, reject) => 
-                    setTimeout(() => reject(new Error('连接超时')), 10000)
-                );
-                
-                const response = await Promise.race([
-                    fetch(apiUrl),
-                    timeoutPromise
-                ]);
-                
-                // 解析响应结果
-                const result = await response.json();
-                
-                // 优先处理链接过期的情况
-                if (!result.success) {
-                    // 检测是否是链接过期
-                    if (result.message === "该链接已过期") {
-                        // 显示过期时间（如果有）
-                        if (result.data?.expiry_time) {
-                            expiryDetail.textContent = `该链接已于 ${result.data.expiry_time} 过期，无法继续访问。请联系链接提供者获取最新链接。`;
+                // 如果有token，先验证token
+                if (token) {
+                    updateLoadProgress('正在验证二维码有效性...');
+                    const tokenValidation = await validateToken(token);
+                    
+                    if (!tokenValidation.valid) {
+                        // token无效或过期
+                        if (tokenValidation.reason === 'token_expired') {
+                            loader.classList.add('hidden');
+                            qrExpiredContainer.classList.remove('hidden');
+                            return;
                         } else {
-                            expiryDetail.textContent = "该链接的有效期已过，无法继续访问。请联系链接提供者获取最新链接。";
+                            throw new Error(tokenValidation.message || '二维码验证失败');
                         }
-                        loaderContainer.classList.add('hidden');
-                        expiredContainer.classList.remove('hidden');
-                        return;
-                    } else {
-                        // 其他错误情况
-                        throw new Error(result.message || '请求失败');
                     }
+                    
+                    // token验证成功，使用返回的数据
+                    result = { success: true, data: tokenValidation.data };
+                    updateLoadProgress('二维码验证成功，正在加载内容...');
+                } else {
+                    // 使用传统的ID方式
+                    updateLoadProgress('正在请求资源信息...');
+                    const apiUrl = `https://wxurl.qihaobao.com/api.php?action=get_url&id=${id}`;
+                    
+                    // 设置请求超时（10秒）
+                    const timeoutPromise = new Promise((_, reject) => 
+                        setTimeout(() => reject(new Error('连接超时')), 10000)
+                    );
+                    const response = await Promise.race([fetch(apiUrl), timeoutPromise]);
+                    result = await response.json();
                 }
                 
-                // 验证是否有有效的URL
+                // 处理API返回的错误
+                if (!result.success) {
+                    if (result.message === "该链接已过期") {
+                        // 链接过期处理
+                        expiryDetail.textContent = result.data?.expiry_time 
+                            ? `该链接已于 ${result.data.expiry_time} 过期` 
+                            : "该链接已过期，请联系提供者获取新链接";
+                        loader.classList.add('hidden');
+                        expiredContainer.classList.remove('hidden');
+                        return;
+                    }
+                    // 其他错误
+                    throw new Error(result.message || '请求失败');
+                }
+                
+                // 验证内容链接是否存在
                 if (!result.data?.original_url) {
                     throw new Error('未找到对应的内容链接');
                 }
@@ -375,77 +629,38 @@
                 currentContent = {
                     url: result.data.original_url,
                     title: result.data.title || '',
+                    subtitle: result.data.subtitle || '',
+                    cover_image: result.data.cover_image || '',
                     method: result.data.method || 'embed',
-                    services: result.data.services?.map(s => s.key) || []
+                    services: result.data.services || [],
+                    serviceKeys: result.data.services?.map(s => s.key) || []
                 };
-                
-                // 验证环境是否匹配
-                const isEnvValid = validateEnvAndServices(currentEnv, currentContent.services);
-                if (!isEnvValid) {
-                    throw new Error('environment_mismatch'); // 特殊错误标识
-                }
                 
                 // 更新页面元数据
                 updatePageMetadata(result.data);
                 
-                // 处理环境和链接
-                updateLoadProgress('正在处理内容...');
-                const useFrame = handleEnvAndUrl(currentEnv, currentContent.url);
-                
-                // 如果需要使用iframe加载（这里主要作为后备方案）
-                if (useFrame) {
-                    // 等待iframe加载完成
-                    await new Promise((resolve, reject) => {
-                        const iframeTimeout = setTimeout(() => {
-                            reject(new Error('内容加载超时'));
-                        }, 15000);
-                        
-                        contentFrame.onload = () => {
-                            clearTimeout(iframeTimeout);
-                            resolve();
-                        };
-                        
-                        contentFrame.onerror = () => {
-                            clearTimeout(iframeTimeout);
-                            reject(new Error('内容加载失败'));
-                        };
-                        
-                        // 设置iframe源
-                        contentFrame.src = currentContent.url;
-                        updateLoadProgress('正在加载内容...');
-                    });
-                    
-                    // 加载成功，显示内容
-                    loaderContainer.classList.add('hidden');
-                    contentContainer.classList.remove('hidden');
-                }
+                // 处理内容展示（环境验证移至processContent函数，仅内嵌模式验证）
+                updateLoadProgress(`正在${currentContent.method === 'embed' ? '加载' : '引导'}内容...`);
+                await processContent(currentEnv);
                 
             } catch (error) {
                 console.error('加载失败:', error);
-                loaderContainer.classList.add('hidden');
+                loader.classList.add('hidden');
                 
-                // 处理环境不匹配的情况
+                // 处理环境不匹配错误（仅内嵌模式可能触发）
                 if (error.message === 'environment_mismatch') {
                     errorIcon.className = 'fa fa-ban text-red-500 text-5xl mb-4';
-                    errorMessage.textContent = '该链接不支持当前环境';
-                    envMismatchHint.classList.remove('hidden');
-                    const supportedEnvNames = currentContent.services.map(s => getEnvName(s)).join('、');
-                    supportedEnvEl.textContent = supportedEnvNames;
+                    errorMessage.textContent = '当前环境不支持该链接';
                     errorContainer.classList.remove('hidden');
                     return;
                 }
                 
                 // 处理其他错误
-                let errorText;
-                if (error.message.includes('超时')) {
-                    errorText = '操作超时，请检查网络连接或稍后重试';
-                } else if (error.message.includes('未找到')) {
-                    errorText = `未找到ID为 ${id} 的内容`;
-                } else if (error.message.includes('权限')) {
-                    errorText = '您没有访问该内容的权限，请开通会员后重试';
-                } else {
-                    errorText = `加载失败: ${error.message}`;
-                }
+                const errorText = error.message.includes('超时') 
+                    ? '操作超时，请检查网络连接' 
+                    : error.message.includes('未找到') 
+                        ? `未找到对应的内容` 
+                        : `加载失败: ${error.message}`;
                 
                 errorIcon.className = 'fa fa-exclamation-triangle text-yellow-500 text-5xl mb-4';
                 errorMessage.textContent = errorText;
@@ -453,32 +668,40 @@
             }
         }
         
-        // 辅助函数：将环境标识转换为中文名称
+        // 辅助函数：环境标识转中文名称
         function getEnvName(env) {
-            const envNames = {
-                'wechat': '微信',
-                'qq': 'QQ',
+            const names = {
+                'wechat': '微信', 
+                'qq': 'QQ', 
                 'alipay': '支付宝',
-                'douyin': '抖音',
-                'browser': '浏览器',
+                'douyin': '抖音', 
+                'browser': '浏览器', 
                 'other': '其他环境'
             };
-            return envNames[env] || '未知环境';
+            return names[env] || '未知环境';
         }
         
-        // 页面加载完成后初始化
+        // 页面初始化
         document.addEventListener('DOMContentLoaded', () => {
-            // 加载内容
             loadContent();
-            
-            // 事件监听
+            // 重试按钮事件
             document.getElementById('retryBtn').addEventListener('click', loadContent);
+            // 关闭按钮事件
             document.getElementById('closeBtn').addEventListener('click', () => {
                 if (window.close) {
                     window.close();
                 } else {
                     document.getElementById('expiredContainer').classList.add('hidden');
-                    document.body.classList.add('bg-gray-100');
+                }
+            });
+            // 二维码过期关闭按钮
+            document.getElementById('closeQrBtn').addEventListener('click', () => {
+                if (window.close) {
+                    window.close();
+                } else {
+                    document.getElementById('qrExpiredContainer').classList.add('hidden');
+                // 返回到首页或显示提示
+                    window.location.href = 'https://wxurl.qihaobao.com/';
                 }
             });
         });
