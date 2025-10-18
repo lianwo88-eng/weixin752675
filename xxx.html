@@ -206,6 +206,9 @@
             services: [], // 支持的服务列表（含详情）
             serviceKeys: [] // 服务标识（用于验证）
         };
+
+        // 微信分享配置存储
+        let wechatShareConfig = null;
         
         // API配置
         const API_CONFIG = {
@@ -484,7 +487,7 @@
             return true;
         }
         
-        // 11. 微信分享配置 - 修复版本
+        // 11. 微信分享配置 - 适配新API结构
         async function configureWechatShare() {
             // 仅在微信环境中执行
             if (detectCurrentEnv() !== 'wechat') return;
@@ -514,15 +517,29 @@
                     throw new Error(`签名生成失败: ${result.msg || '未知错误'}`);
                 }
                 
-                const { appId, timestamp, nonceStr, signature } = result.data;
+                const { appId, timestamp, nonceStr, signature, shareInfo } = result.data;
+                
+                // 存储分享配置
+                wechatShareConfig = {
+                    appId,
+                    timestamp,
+                    nonceStr,
+                    signature,
+                    shareInfo: shareInfo || {
+                        title: '临时通道',
+                        desc: '临时通道，限时访问',
+                        link: currentUrl,
+                        imgUrl: 'https://wxurl.qihaobao.com/01.png'
+                    }
+                };
                 
                 // 配置微信JS-SDK
                 wx.config({
                     debug: false, // 生产环境关闭调试
-                    appId: appId,
-                    timestamp: timestamp,
-                    nonceStr: nonceStr,
-                    signature: signature,
+                    appId: wechatShareConfig.appId,
+                    timestamp: wechatShareConfig.timestamp,
+                    nonceStr: wechatShareConfig.nonceStr,
+                    signature: wechatShareConfig.signature,
                     jsApiList: [
                         'updateAppMessageShareData',  // 分享给朋友
                         'updateTimelineShareData',    // 分享到朋友圈
@@ -531,16 +548,19 @@
                     ]
                 });
                 
-                // 配置分享内容 - 使用固定默认值
+                // 配置分享内容 - 使用API返回的分享信息
                 wx.ready(() => {
                     console.log('微信JS-SDK准备就绪，开始配置分享');
+                    console.log('分享配置:', wechatShareConfig.shareInfo);
+                    
+                    const shareData = wechatShareConfig.shareInfo;
                     
                     // 新版分享API
                     wx.updateAppMessageShareData({
-                        title: '临时通道', // 固定标题
-                        desc: '临时通道，限时访问', // 固定描述
-                        link: currentUrl, // 分享链接（当前页面URL）
-                        imgUrl: 'https://wxurl.qihaobao.com/01.png', // 固定图标
+                        title: shareData.title,
+                        desc: shareData.desc,
+                        link: shareData.link,
+                        imgUrl: shareData.imgUrl,
                         success: () => {
                             console.log('微信朋友分享配置成功');
                         },
@@ -550,9 +570,9 @@
                     });
                     
                     wx.updateTimelineShareData({
-                        title: '临时通道', // 固定标题
-                        link: currentUrl,
-                        imgUrl: 'https://wxurl.qihaobao.com/01.png', // 固定图标
+                        title: shareData.title,
+                        link: shareData.link,
+                        imgUrl: shareData.imgUrl,
                         success: () => {
                             console.log('微信朋友圈分享配置成功');
                         },
@@ -563,19 +583,19 @@
                     
                     // 兼容旧版API
                     wx.onMenuShareAppMessage({
-                        title: '临时通道',
-                        desc: '临时通道，限时访问',
-                        link: currentUrl,
-                        imgUrl: 'https://wxurl.qihaobao.com/01.png',
+                        title: shareData.title,
+                        desc: shareData.desc,
+                        link: shareData.link,
+                        imgUrl: shareData.imgUrl,
                         success: () => {
                             console.log('旧版朋友分享配置成功');
                         }
                     });
                     
                     wx.onMenuShareTimeline({
-                        title: '临时通道',
-                        link: currentUrl,
-                        imgUrl: 'https://wxurl.qihaobao.com/01.png',
+                        title: shareData.title,
+                        link: shareData.link,
+                        imgUrl: shareData.imgUrl,
                         success: () => {
                             console.log('旧版朋友圈分享配置成功');
                         }
