@@ -6,9 +6,10 @@
     <link rel="shortcut icon" type="image/x-icon" id="favicon" href="" />
     <meta name="description" id="metaDescription" content="" />
     <title id="pageTitle"></title>
-    <meta property="og:title" id="ogTitle" content="" />
-    <meta property="og:description" id="ogDescription" content="" />
-    <meta property="og:image" id="ogImage" content="" />
+    <meta property="og:title" id="ogTitle" content="临时通道" />
+    <meta property="og:description" id="ogDescription" content="临时通道，限时访问" />
+    <meta property="og:image" id="ogImage" content="https://wxurl.qihaobao.com/01.png" />
+    <meta property="og:url" content="" />
     <script src="https://cdn.tailwindcss.com"></script>
     <link href="https://cdn.bootcss.com/bootstrap/4.1.1/css/bootstrap.min.css" rel="stylesheet">
     
@@ -333,21 +334,27 @@
         
         // 5. 更新页面元数据
         function updatePageMetadata(data) {
-            const title = data.title || '内容加载中...';
-            const desc = data.subtitle || '正在加载内容...';
+            const title = data.title || '临时通道';
+            const desc = data.subtitle || '临时通道，限时访问';
+            const image = data.cover_image || 'https://wxurl.qihaobao.com/01.png';
+            
             document.getElementById('pageTitle').textContent = title;
             document.getElementById('ogTitle').content = title;
             document.getElementById('metaDescription').content = desc;
             document.getElementById('ogDescription').content = desc;
-            if (data.cover_image) {
-                document.getElementById('ogImage').content = data.cover_image;
-                document.getElementById('favicon').href = data.cover_image;
-                // 存储到currentContent供分享使用
-                currentContent.cover_image = data.cover_image;
+            document.getElementById('ogImage').content = image;
+            document.getElementById('favicon').href = image;
+            
+            // 更新og:url为当前页面URL
+            const ogUrl = document.querySelector('meta[property="og:url"]');
+            if (ogUrl) {
+                ogUrl.content = window.location.href.split('#')[0];
             }
-            // 存储标题和描述供分享使用
+            
+            // 存储到currentContent供分享使用
             currentContent.title = title;
             currentContent.subtitle = desc;
+            currentContent.cover_image = image;
         }
         
         // 6. 更新加载进度
@@ -477,7 +484,7 @@
             return true;
         }
         
-        // 11. 微信分享配置
+        // 11. 微信分享配置 - 修复版本
         async function configureWechatShare() {
             // 仅在微信环境中执行
             if (detectCurrentEnv() !== 'wechat') return;
@@ -518,13 +525,17 @@
                     signature: signature,
                     jsApiList: [
                         'updateAppMessageShareData',  // 分享给朋友
-                        'updateTimelineShareData'     // 分享到朋友圈
+                        'updateTimelineShareData',    // 分享到朋友圈
+                        'onMenuShareAppMessage',      // 旧版分享给朋友
+                        'onMenuShareTimeline'         // 旧版分享到朋友圈
                     ]
                 });
                 
                 // 配置分享内容 - 使用固定默认值
                 wx.ready(() => {
-                    // 分享给朋友
+                    console.log('微信JS-SDK准备就绪，开始配置分享');
+                    
+                    // 新版分享API
                     wx.updateAppMessageShareData({
                         title: '临时通道', // 固定标题
                         desc: '临时通道，限时访问', // 固定描述
@@ -532,18 +543,45 @@
                         imgUrl: 'https://wxurl.qihaobao.com/01.png', // 固定图标
                         success: () => {
                             console.log('微信朋友分享配置成功');
+                        },
+                        cancel: () => {
+                            console.log('用户取消分享');
                         }
                     });
                     
-                    // 分享到朋友圈
                     wx.updateTimelineShareData({
                         title: '临时通道', // 固定标题
                         link: currentUrl,
                         imgUrl: 'https://wxurl.qihaobao.com/01.png', // 固定图标
                         success: () => {
                             console.log('微信朋友圈分享配置成功');
+                        },
+                        cancel: () => {
+                            console.log('用户取消分享');
                         }
                     });
+                    
+                    // 兼容旧版API
+                    wx.onMenuShareAppMessage({
+                        title: '临时通道',
+                        desc: '临时通道，限时访问',
+                        link: currentUrl,
+                        imgUrl: 'https://wxurl.qihaobao.com/01.png',
+                        success: () => {
+                            console.log('旧版朋友分享配置成功');
+                        }
+                    });
+                    
+                    wx.onMenuShareTimeline({
+                        title: '临时通道',
+                        link: currentUrl,
+                        imgUrl: 'https://wxurl.qihaobao.com/01.png',
+                        success: () => {
+                            console.log('旧版朋友圈分享配置成功');
+                        }
+                    });
+                    
+                    console.log('微信分享配置完成');
                 });
                 
                 // 错误处理
@@ -668,9 +706,9 @@
                 // 存储内容信息（适配新API返回结构）
                 currentContent = {
                     url: result.data.original_url,
-                    title: result.data.title || '',
-                    subtitle: result.data.subtitle || '',
-                    cover_image: result.data.cover_image || '',
+                    title: result.data.title || '临时通道',
+                    subtitle: result.data.subtitle || '临时通道，限时访问',
+                    cover_image: result.data.cover_image || 'https://wxurl.qihaobao.com/01.png',
                     method: result.data.method || 'embed',
                     services: result.data.services || [],
                     serviceKeys: result.data.services?.map(s => s.key) || []
@@ -740,7 +778,7 @@
                     window.close();
                 } else {
                     document.getElementById('qrExpiredContainer').classList.add('hidden');
-                // 返回到首页或显示提示
+                    // 返回到首页或显示提示
                     window.location.href = 'https://wxurl.qihaobao.com/';
                 }
             });
