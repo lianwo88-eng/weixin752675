@@ -477,13 +477,31 @@
                         
                         // 如果设置了自动跳转时间
                         if (redirectTime > 0) {
-                            // 更新提示文字
-                            document.getElementById('imageHint').textContent = `将在 ${redirectTime} 秒后自动跳转`;
+                            let remainingTime = redirectTime;
+                            const imageHint = document.getElementById('imageHint');
                             
-                            // 设置自动跳转（在当前页面打开）
-                            setTimeout(() => {
-                                redirectToTarget(fixedRedirectUrl);
-                            }, redirectTime * 1000);
+                            // 更新倒计时显示的函数
+                            function updateCountdown() {
+                                imageHint.textContent = `将在 ${remainingTime} 秒后自动跳转`;
+                                remainingTime--;
+                                
+                                if (remainingTime < 0) {
+                                    // 倒计时结束，执行跳转
+                                    redirectToTarget(fixedRedirectUrl);
+                                }
+                            }
+                            
+                            // 立即显示初始倒计时
+                            updateCountdown();
+                            
+                            // 每秒更新倒计时
+                            const countdownInterval = setInterval(() => {
+                                if (remainingTime < 0) {
+                                    clearInterval(countdownInterval);
+                                } else {
+                                    updateCountdown();
+                                }
+                            }, 1000);
                         } else {
                             // 没有设置自动跳转时间，显示点击图片跳转
                             document.getElementById('imageHint').textContent = '点击图片跳转';
