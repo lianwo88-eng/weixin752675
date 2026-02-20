@@ -151,7 +151,7 @@
             </div>
             
             <div class="bg-gray-50 rounded-xl p-5 mb-6 image-container">
-                <a id="imageLink" href="#" target="_blank" class="block">
+                <a id="imageLink" href="#" class="block">
                     <img id="imagePreview" src="" alt="图片预览" class="image-preview rounded-lg shadow-sm">
                 </a>
                 <!-- 图片加载失败的备用内容 -->
@@ -467,12 +467,12 @@
                     if (redirectUrl) {
                         const fixedRedirectUrl = validateUrl(redirectUrl);
                         
-                        // 设置图片链接（在新页面打开）
+                        // 设置图片链接（在当前页面打开）
                         imageLink.href = fixedRedirectUrl;
                         
-                        // 设置跳转按钮（在新页面打开）
+                        // 设置跳转按钮（在当前页面打开）
                         imageRedirectBtn.onclick = () => {
-                            window.open(fixedRedirectUrl, '_blank');
+                            redirectToTarget(fixedRedirectUrl);
                         };
                         
                         // 如果设置了自动跳转时间
@@ -480,9 +480,9 @@
                             // 更新提示文字
                             document.getElementById('imageHint').textContent = `将在 ${redirectTime} 秒后自动跳转`;
                             
-                            // 设置自动跳转（在新页面打开）
+                            // 设置自动跳转（在当前页面打开）
                             setTimeout(() => {
-                                window.open(fixedRedirectUrl, '_blank');
+                                redirectToTarget(fixedRedirectUrl);
                             }, redirectTime * 1000);
                         } else {
                             // 没有设置自动跳转时间，显示点击图片跳转
