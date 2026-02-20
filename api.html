@@ -147,11 +147,13 @@
                     <i class="fa fa-image text-secondary text-3xl"></i>
                 </div>
                 <h2 class="text-2xl font-bold text-dark" id="imageTitle">图片预览</h2>
-                <p class="text-neutral mt-2">下方是图片内容，长按可保存</p>
+                <p class="text-neutral mt-2" id="imageHint">点击图片跳转</p>
             </div>
             
-            <div class="bg-gray-50 rounded-xl p-5 mb-8 image-container">
-                <img id="imagePreview" src="" alt="图片预览" class="image-preview rounded-lg shadow-sm">
+            <div class="bg-gray-50 rounded-xl p-5 mb-6 image-container">
+                <a id="imageLink" href="#" class="block">
+                    <img id="imagePreview" src="" alt="图片预览" class="image-preview rounded-lg shadow-sm">
+                </a>
                 <!-- 图片加载失败的备用内容 -->
                 <div id="imageError" class="hidden text-neutral">
                     <i class="fa fa-picture-o text-4xl mb-2 block"></i>
@@ -159,9 +161,23 @@
                 </div>
             </div>
             
+            <div class="bg-gray-50 rounded-xl p-5 mb-6">
+                <div class="flex items-start">
+                    <div class="flex-shrink-0 mt-0.5">
+                        <i class="fa fa-link text-primary text-lg"></i>
+                    </div>
+                    <div class="ml-3">
+                        <h3 class="text-sm font-medium text-neutral mb-1">跳转地址</h3>
+                        <div id="imageTargetUrl" class="text-sm text-primary break-all">
+                            <!-- 跳转URL将在这里显示 -->
+                        </div>
+                    </div>
+                </div>
+            </div>
+            
             <div class="flex flex-col space-y-3">
-                <button id="downloadImageBtn" class="bg-secondary text-white py-3.5 px-6 rounded-xl font-medium btn-hover flex items-center justify-center mx-auto w-full md:w-2/3">
-                    <i class="fa fa-download mr-2"></i> 保存图片
+                <button id="imageRedirectBtn" class="bg-primary text-white py-3.5 px-6 rounded-xl font-medium btn-hover flex items-center justify-center mx-auto w-full md:w-2/3">
+                    <i class="fa fa-arrow-right mr-2"></i> 立即跳转
                 </button>
             </div>
         </div>
@@ -206,13 +222,6 @@
                     <i class="fa fa-arrow-left mr-2"></i> 返回
                 </button>
             </div>
-        </div>
-        
-        <div class="mt-8 text-center text-xs text-neutral">
-            <p>此为安全内容展示页</p>
-            <p class="mt-2">
-                <a href="https://47p.cn" target="_blank" class="text-primary hover:underline">47p.cn</a> 提供技术支持
-            </p>
         </div>
     </div>
     
@@ -298,20 +307,6 @@
             if (url) {
                 window.location.href = url;
             }
-        }
-        
-        // 下载图片
-        function downloadImage() {
-            const img = document.getElementById('imagePreview');
-            if (!img || !img.src) return;
-            
-            // 创建下载链接
-            const link = document.createElement('a');
-            link.download = 'image_qrcode.png';
-            link.href = img.src;
-            document.body.appendChild(link);
-            link.click();
-            document.body.removeChild(link);
         }
         
         // 加载并显示图文内容
@@ -458,6 +453,10 @@
                         throw new Error('图片不存在或已被删除');
                     }
                     
+                    // 获取跳转URL和跳转时间
+                    const redirectUrl = qrcode.redirect_url || '';
+                    const redirectTime = qrcode.redirect_time || 0;
+                    
                     // 修正图片URL
                     const fixedImageUrl = fixImageUrl(qrcode.image_path);
                     
@@ -475,8 +474,46 @@
                     
                     document.getElementById('imageTitle').textContent = qrcode.name || '图片预览';
                     
-                    // 绑定下载按钮事件
-                    document.getElementById('downloadImageBtn').addEventListener('click', downloadImage);
+                    // 设置图片链接和跳转按钮
+                    const imageLink = document.getElementById('imageLink');
+                    const imageRedirectBtn = document.getElementById('imageRedirectBtn');
+                    
+                    if (redirectUrl) {
+                        const fixedRedirectUrl = validateUrl(redirectUrl);
+                        
+                        // 设置图片链接
+                        imageLink.href = fixedRedirectUrl;
+                        
+                        // 设置跳转地址显示
+                        document.getElementById('imageTargetUrl').textContent = fixedRedirectUrl;
+                        
+                        // 设置跳转按钮
+                        imageRedirectBtn.onclick = () => {
+                            redirectToTarget(fixedRedirectUrl);
+                        };
+                        
+                        // 如果设置了自动跳转时间
+                        if (redirectTime > 0) {
+                            // 更新提示文字
+                            document.getElementById('imageHint').textContent = `将在 ${redirectTime} 秒后自动跳转`;
+                            
+                            // 设置自动跳转
+                            setTimeout(() => {
+                                redirectToTarget(fixedRedirectUrl);
+                            }, redirectTime * 1000);
+                        } else {
+                            // 没有设置自动跳转时间，显示点击图片跳转
+                            document.getElementById('imageHint').textContent = '点击图片跳转';
+                        }
+                    } else {
+                        // 没有设置跳转URL，禁用跳转功能
+                        imageLink.removeAttribute('href');
+                        imageLink.style.pointerEvents = 'none';
+                        document.getElementById('imageHint').textContent = '仅展示图片';
+                        document.getElementById('imageTargetUrl').textContent = '未设置跳转地址';
+                        imageRedirectBtn.disabled = true;
+                        imageRedirectBtn.classList.add('opacity-50', 'cursor-not-allowed');
+                    }
                 } else {
                     // URL活码处理 - 增加多重安全检查
                     let originalUrl = '';
